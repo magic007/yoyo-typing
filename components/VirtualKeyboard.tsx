@@ -27,11 +27,11 @@ const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({ activeKey, errorKeys 
 
   const getFingerHint = (finger?: number) => {
     if (!finger) return null;
-    const hand = finger <= 5 ? 'Left' : 'Right';
+    const hand = finger <= 5 ? '左手' : '右手';
     const fingerName = finger <= 5 ? finger : finger - 5;
     // Simple visual cue: 1=Pinky, 5=Thumb
-    const map = ['Pinky', 'Ring', 'Middle', 'Index', 'Thumb'];
-    return `${hand} ${map[fingerName-1]}`;
+    const map = ['小指', '无名指', '中指', '食指', '拇指'];
+    return `${hand}${map[fingerName-1]}`;
   };
 
   const activeKeyConfig = KEYBOARD_LAYOUT.flat().find(k => k.key === activeKey);
@@ -70,10 +70,10 @@ const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({ activeKey, errorKeys 
       <div className="h-8 flex items-center justify-center text-slate-500 font-medium">
         {activeKeyConfig ? (
           <span className="flex items-center gap-2 animate-pulse text-blue-600">
-            Uses: <span className="font-bold">{getFingerHint(activeKeyConfig.finger)}</span>
+            推荐指法: <span className="font-bold">{getFingerHint(activeKeyConfig.finger)}</span>
           </span>
         ) : (
-          <span>Start typing...</span>
+          <span>开始打字练习...</span>
         )}
       </div>
     </div>

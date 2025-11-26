@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { GameWord } from '../types';
 import { GAME_WORDS } from '../constants';
@@ -111,39 +110,52 @@ const TypingGame: React.FC<TypingGameProps> = ({ onExit }) => {
       {/* HUD */}
       <div className="flex justify-between items-center p-4 bg-slate-800 text-white z-10 shrink-0">
         <div className="flex gap-4">
-          <span className="font-cartoon text-2xl text-yellow-400">Score: {score}</span>
-          <span className="font-cartoon text-2xl text-red-400">Lives: {'❤️'.repeat(Math.max(0, lives))}</span>
+          <span className="font-cartoon text-2xl text-yellow-400">得分: {score}</span>
+          <span className="font-cartoon text-2xl text-red-400">生命: {'❤️'.repeat(Math.max(0, lives))}</span>
         </div>
-        <button onClick={onExit} className="px-4 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg text-sm">Exit Game</button>
+        <button onClick={onExit} className="px-4 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg text-sm">退出游戏</button>
       </div>
 
       {/* Game Area */}
       <div className="relative flex-1 w-full bg-gradient-to-b from-slate-900 to-indigo-900 overflow-hidden">
         
         {/* Words */}
-        {isPlaying && !gameOver && words.map(w => (
-          <div
-            key={w.id}
-            className="absolute px-3 py-1 bg-white/10 backdrop-blur rounded-full text-white font-mono text-lg font-bold border border-white/20 shadow-lg"
-            style={{
-              left: `${w.x}%`,
-              top: `${w.y}%`,
-            }}
-          >
-            {w.text}
-          </div>
-        ))}
+        {isPlaying && !gameOver && words.map(w => {
+          const isMatch = input.length > 0 && w.text.startsWith(input);
+          return (
+            <div
+              key={w.id}
+              className={`absolute px-3 py-1 backdrop-blur rounded-full font-mono text-lg font-bold border shadow-lg transition-all duration-100
+                ${isMatch 
+                  ? 'bg-blue-600/90 border-blue-400 text-white z-20 scale-110 shadow-blue-500/50' 
+                  : 'bg-white/10 border-white/20 text-white z-10'}`}
+              style={{
+                left: `${w.x}%`,
+                top: `${w.y}%`,
+              }}
+            >
+              {isMatch ? (
+                <>
+                  <span className="text-yellow-300 border-b-2 border-yellow-300">{w.text.slice(0, input.length)}</span>
+                  <span className="opacity-80">{w.text.slice(input.length)}</span>
+                </>
+              ) : (
+                w.text
+              )}
+            </div>
+          );
+        })}
 
         {/* Start Screen Overlay */}
         {!isPlaying && !gameOver && (
           <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-900/80 backdrop-blur-sm">
-             <h2 className="text-6xl font-cartoon text-yellow-400 mb-2">WORD RAIN</h2>
-             <p className="text-slate-300 mb-8 text-xl">Type the words before they fall!</p>
+             <h2 className="text-6xl font-cartoon text-yellow-400 mb-2">单词雨</h2>
+             <p className="text-slate-300 mb-8 text-xl">在单词落地前输入它们！</p>
              <button 
                onClick={startGame}
                className="px-8 py-4 bg-blue-500 hover:bg-blue-400 text-white font-bold rounded-full text-2xl shadow-xl transform hover:scale-105 transition-all"
              >
-               Start Game
+               开始游戏
              </button>
           </div>
         )}
@@ -151,20 +163,20 @@ const TypingGame: React.FC<TypingGameProps> = ({ onExit }) => {
         {/* Game Over Overlay */}
         {gameOver && (
           <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
-            <h2 className="text-6xl font-cartoon text-red-500 mb-4">GAME OVER</h2>
-            <p className="text-2xl text-white mb-8">Final Score: {score}</p>
+            <h2 className="text-6xl font-cartoon text-red-500 mb-4">游戏结束</h2>
+            <p className="text-2xl text-white mb-8">最终得分: {score}</p>
             <div className="flex gap-4">
                <button 
                  onClick={startGame}
                  className="px-8 py-3 bg-yellow-500 hover:bg-yellow-400 text-yellow-900 font-bold rounded-full text-xl shadow-lg"
                >
-                 Play Again
+                 再玩一次
                </button>
                <button 
                  onClick={onExit}
                  className="px-8 py-3 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-full text-xl shadow-lg"
                >
-                 Exit
+                 退出
                </button>
             </div>
           </div>
@@ -178,7 +190,7 @@ const TypingGame: React.FC<TypingGameProps> = ({ onExit }) => {
           autoFocus
           value={input}
           onChange={handleInputChange}
-          placeholder={!isPlaying ? "Click Start to Play" : "Type falling words..."}
+          placeholder={!isPlaying ? "点击开始游戏" : "输入掉落的单词..."}
           disabled={!isPlaying || gameOver}
           className="w-full max-w-lg px-6 py-4 text-2xl font-mono text-center rounded-xl bg-slate-700 text-white border-2 border-slate-600 focus:border-yellow-400 focus:outline-none placeholder-slate-500 disabled:opacity-50"
         />

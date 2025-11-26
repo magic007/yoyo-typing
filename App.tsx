@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { STATIC_LESSONS } from './constants';
 import { AppMode, Lesson, PracticeStats, Difficulty } from './types';
@@ -138,7 +137,7 @@ export default function App() {
     if (lesson) {
       handleStartLesson(lesson);
     } else {
-      alert("Failed to generate. Please check API Key or try again.");
+      alert("生成失败，请检查 API Key 或重试。");
     }
   };
 
@@ -156,7 +155,7 @@ export default function App() {
 
     const lesson: Lesson = {
       id: `custom-${Date.now()}`,
-      title: '📝 Custom Practice',
+      title: '📝 自定义内容',
       category: 'custom',
       difficulty: Difficulty.MEDIUM,
       content: cleanContent
@@ -177,7 +176,7 @@ export default function App() {
     <div className="max-w-6xl mx-auto p-8 animate-fade-in">
       <header className="mb-12 text-center">
         <h1 className="text-6xl font-cartoon text-blue-600 mb-4 drop-shadow-sm">悠悠打字通</h1>
-        <p className="text-xl text-slate-500 font-medium">Funny Typing for Smart Kids!</p>
+        <p className="text-xl text-slate-500 font-medium">专为学生设计的趣味打字练习工具</p>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -185,7 +184,7 @@ export default function App() {
         {/* Left Column: Practice Lessons */}
         <div className="bg-white rounded-3xl p-6 shadow-xl border border-slate-100 flex flex-col gap-3">
           <h2 className="text-2xl font-bold text-slate-700 mb-2 flex items-center gap-2">
-            <span>📚</span> Practice Drills
+            <span>📚</span> 基础练习
           </h2>
           
           {/* Basics */}
@@ -208,7 +207,7 @@ export default function App() {
                 onClick={() => setShowFingerOptions(!showFingerOptions)}
                 className="w-full text-left p-4 bg-slate-50 hover:bg-blue-50 transition-colors flex justify-between items-center group"
              >
-                <span className="font-bold text-slate-700 group-hover:text-blue-600">✋ 手指练习 (Finger Practice)</span>
+                <span className="font-bold text-slate-700 group-hover:text-blue-600">✋ 手指专项练习</span>
                 <span className={`text-slate-400 transform transition-transform ${showFingerOptions ? 'rotate-180' : ''}`}>▼</span>
              </button>
              
@@ -221,7 +220,7 @@ export default function App() {
                         className="w-full text-left p-3 pl-6 rounded-lg hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-slate-100 flex justify-between items-center"
                       >
                          <span className="text-slate-600 font-medium text-sm">{l.title}</span>
-                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 uppercase">Drill</span>
+                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 uppercase">指法</span>
                       </button>
                    ))}
                 </div>
@@ -234,7 +233,7 @@ export default function App() {
                 onClick={() => setShowPrimaryOptions(!showPrimaryOptions)}
                 className="w-full text-left p-4 bg-slate-50 hover:bg-blue-50 transition-colors flex justify-between items-center group"
              >
-                <span className="font-bold text-slate-700 group-hover:text-blue-600">📖 小学单词 (Grades 1-6)</span>
+                <span className="font-bold text-slate-700 group-hover:text-blue-600">📖 小学英语单词 (1-6年级)</span>
                 <span className={`text-slate-400 transform transition-transform ${showPrimaryOptions ? 'rotate-180' : ''}`}>▼</span>
              </button>
              
@@ -247,7 +246,7 @@ export default function App() {
                         className="w-full text-left p-3 pl-6 rounded-lg hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-slate-100 flex justify-between items-center"
                       >
                          <span className="text-slate-600 font-medium text-sm">{l.title}</span>
-                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 uppercase">Vocab</span>
+                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 uppercase">词汇</span>
                       </button>
                    ))}
                 </div>
@@ -260,14 +259,14 @@ export default function App() {
                 onClick={() => setShowCustomOptions(!showCustomOptions)}
                 className="w-full text-left p-4 bg-slate-50 hover:bg-blue-50 transition-colors flex justify-between items-center group"
              >
-                <span className="font-bold text-slate-700 group-hover:text-emerald-600">✍️ 自定义练习 (Custom Text)</span>
+                <span className="font-bold text-slate-700 group-hover:text-emerald-600">✍️ 自定义内容练习</span>
                 <span className={`text-slate-400 transform transition-transform ${showCustomOptions ? 'rotate-180' : ''}`}>▼</span>
              </button>
              
              {showCustomOptions && (
                 <div className="bg-slate-50/50 p-4 animate-fade-in">
                    <textarea
-                      placeholder="Paste text or words here (comma separated for word lists)..."
+                      placeholder="在此粘贴文章，或输入逗号分隔的单词列表..."
                       className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-400 focus:outline-none min-h-[80px] resize-none mb-2 bg-white"
                       value={customText}
                       onChange={(e) => setCustomText(e.target.value)}
@@ -277,7 +276,7 @@ export default function App() {
                       disabled={!customText.trim()}
                       className="w-full bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold text-sm disabled:opacity-50 transition-colors"
                    >
-                      Start Practice
+                      开始练习
                    </button>
                 </div>
              )}
@@ -309,22 +308,22 @@ export default function App() {
           <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl p-8 shadow-xl text-white relative overflow-hidden group cursor-pointer"
                onClick={() => setMode(AppMode.GAME)}>
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-10 -mt-10 blur-2xl transition-all group-hover:bg-white/20"></div>
-            <h2 className="text-3xl font-cartoon mb-2">🎮 Play Word Rain</h2>
-            <p className="text-indigo-100 mb-4">Type falling words before they hit the ground!</p>
+            <h2 className="text-3xl font-cartoon mb-2">🎮 单词雨游戏</h2>
+            <p className="text-indigo-100 mb-4">趣味打字游戏，提升反应速度！</p>
             <button className="bg-white text-indigo-600 px-6 py-2 rounded-full font-bold shadow-lg hover:scale-105 transition-transform">
-              Start Game
+              开始挑战
             </button>
           </div>
 
           {/* AI Generator */}
           <div className="bg-white rounded-3xl p-6 shadow-xl border border-slate-100">
             <h2 className="text-2xl font-bold text-slate-700 mb-4 flex items-center gap-2">
-              <span>✨</span> AI Magic Lesson
+              <span>✨</span> AI 智能出题
             </h2>
             <div className="flex gap-2">
               <input
                 type="text"
-                placeholder="Topic? e.g. Dinosaurs, Space..."
+                placeholder="话题？例如：恐龙、太空..."
                 className="flex-1 border-2 border-slate-200 rounded-xl px-4 py-2 focus:border-blue-400 focus:outline-none"
                 value={aiTopic}
                 onChange={(e) => setAiTopic(e.target.value)}
@@ -332,21 +331,21 @@ export default function App() {
               <button 
                 onClick={handleAIGenerate}
                 disabled={isGenerating || !process.env.API_KEY}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl font-bold disabled:opacity-50 transition-colors"
+                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl font-bold disabled:opacity-50 transition-colors whitespace-nowrap"
               >
-                {isGenerating ? '...' : 'Create'}
+                {isGenerating ? '...' : '生成课程'}
               </button>
             </div>
             {!process.env.API_KEY && (
-               <p className="text-xs text-red-400 mt-2">API Key missing. Add to metadata.json/env to enable.</p>
+               <p className="text-xs text-red-400 mt-2">缺少 API Key。请在 metadata.json 或 env 中配置。</p>
             )}
           </div>
           
           {/* Stats Teaser */}
           {history.length > 0 && (
              <div className="bg-white rounded-3xl p-6 shadow-xl border border-slate-100 cursor-pointer hover:bg-slate-50" onClick={() => setMode(AppMode.STATS)}>
-                <h2 className="text-xl font-bold text-slate-700">📊 View Progress</h2>
-                <p className="text-slate-500">You practiced {history.length} times.</p>
+                <h2 className="text-xl font-bold text-slate-700">📊 查看进步</h2>
+                <p className="text-slate-500">你已经练习了 {history.length} 次。</p>
              </div>
           )}
         </div>
@@ -388,7 +387,7 @@ export default function App() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <button onClick={() => setMode(AppMode.HOME)} className="text-slate-500 hover:text-blue-600 font-bold flex items-center gap-2">
-            ← Quit
+            ← 退出
           </button>
           <div className="text-center">
             <h2 className="text-xl font-bold text-slate-700">{currentLesson?.title}</h2>
@@ -397,7 +396,7 @@ export default function App() {
             <button 
               onClick={() => setIsMuted(!isMuted)} 
               className={`p-2 rounded-full ${isMuted ? 'bg-slate-200 text-slate-500' : 'bg-blue-100 text-blue-600'} hover:opacity-80 transition-colors`}
-              title={isMuted ? "Unmute Sound" : "Mute Sound"}
+              title={isMuted ? "取消静音" : "静音"}
             >
               {isMuted ? '🔇' : '🔊'}
             </button>
@@ -414,20 +413,20 @@ export default function App() {
             {/* Overlay for Finish */}
             {isFinished && (
               <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center rounded-2xl z-20 animate-fade-in">
-                <h3 className="text-4xl font-cartoon text-blue-600 mb-2">Awesome! 🎉</h3>
+                <h3 className="text-4xl font-cartoon text-blue-600 mb-2">太棒了！🎉</h3>
                 <div className="grid grid-cols-2 gap-8 mb-8 text-center">
                   <div>
-                    <p className="text-slate-400 text-sm uppercase font-bold">WPM</p>
+                    <p className="text-slate-400 text-sm uppercase font-bold">速度 (WPM)</p>
                     <p className="text-4xl font-bold text-slate-800">{calculateStats().wpm}</p>
                   </div>
                   <div>
-                    <p className="text-slate-400 text-sm uppercase font-bold">Accuracy</p>
+                    <p className="text-slate-400 text-sm uppercase font-bold">正确率</p>
                     <p className="text-4xl font-bold text-slate-800">{calculateStats().accuracy}%</p>
                   </div>
                 </div>
                 <div className="flex gap-4">
-                  <button onClick={() => handleStartLesson(currentLesson!)} className="px-6 py-2 bg-slate-200 rounded-full font-bold hover:bg-slate-300 text-slate-700">Retry</button>
-                  <button onClick={() => setMode(AppMode.HOME)} className="px-6 py-2 bg-blue-500 rounded-full font-bold hover:bg-blue-600 text-white shadow-lg">Next</button>
+                  <button onClick={() => handleStartLesson(currentLesson!)} className="px-6 py-2 bg-slate-200 rounded-full font-bold hover:bg-slate-300 text-slate-700">重试</button>
+                  <button onClick={() => setMode(AppMode.HOME)} className="px-6 py-2 bg-blue-500 rounded-full font-bold hover:bg-blue-600 text-white shadow-lg">完成</button>
                 </div>
               </div>
             )}
@@ -448,8 +447,8 @@ export default function App() {
   const renderStats = () => (
     <div className="max-w-4xl mx-auto p-8 h-screen flex flex-col">
        <div className="flex justify-between items-center mb-8">
-          <button onClick={() => setMode(AppMode.HOME)} className="text-slate-500 hover:text-blue-600 font-bold">← Back to Home</button>
-          <h2 className="text-3xl font-cartoon text-slate-700">Your Progress</h2>
+          <button onClick={() => setMode(AppMode.HOME)} className="text-slate-500 hover:text-blue-600 font-bold">← 返回首页</button>
+          <h2 className="text-3xl font-cartoon text-slate-700">你的练习记录</h2>
        </div>
        
        <div className="bg-white p-6 rounded-3xl shadow-xl border border-slate-100 flex-1 min-h-[400px]">
@@ -460,11 +459,11 @@ export default function App() {
               <Tooltip 
                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
               />
-              <Line type="monotone" dataKey="wpm" stroke="#3b82f6" strokeWidth={3} dot={{r: 6}} name="WPM" />
-              <Line type="monotone" dataKey="accuracy" stroke="#10b981" strokeWidth={3} dot={{r: 6}} name="Accuracy %" />
+              <Line type="monotone" dataKey="wpm" stroke="#3b82f6" strokeWidth={3} dot={{r: 6}} name="速度 (WPM)" />
+              <Line type="monotone" dataKey="accuracy" stroke="#10b981" strokeWidth={3} dot={{r: 6}} name="正确率 %" />
             </LineChart>
           </ResponsiveContainer>
-          <p className="text-center text-slate-400 mt-4">Sessions History</p>
+          <p className="text-center text-slate-400 mt-4">历史练习曲线</p>
        </div>
     </div>
   );

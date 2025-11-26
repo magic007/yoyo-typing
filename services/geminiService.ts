@@ -31,7 +31,7 @@ export const generateLesson = async (topic: string, difficulty: Difficulty): Pro
 
     return {
       id: `ai-${Date.now()}`,
-      title: `AI: ${topic}`,
+      title: `AI生成: ${topic}`,
       category: 'ai',
       difficulty,
       content: text
