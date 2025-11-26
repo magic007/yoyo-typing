@@ -17,6 +17,7 @@ const TypingGame: React.FC<TypingGameProps> = ({ onExit }) => {
   const requestRef = useRef<number>(0);
   const lastSpawnRef = useRef<number>(0);
   const speedMultiplier = useRef(1);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Start Game Handler
   const startGame = () => {
@@ -26,7 +27,13 @@ const TypingGame: React.FC<TypingGameProps> = ({ onExit }) => {
     setLives(3);
     setWords([]);
     setInput('');
-    lastSpawnRef.current = performance.now();
+    // Set to 0 to ensure the first word spawns immediately on the next frame
+    lastSpawnRef.current = 0; 
+    
+    // Focus input after a brief delay to ensure UI updates
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
   };
 
   // Game Loop
@@ -34,13 +41,14 @@ const TypingGame: React.FC<TypingGameProps> = ({ onExit }) => {
     if (gameOver || !isPlaying) return;
 
     // Spawn new word logic
+    // time is performance.now()
     if (time - lastSpawnRef.current > 2000 / speedMultiplier.current) {
       const text = GAME_WORDS[Math.floor(Math.random() * GAME_WORDS.length)];
       const newWord: GameWord = {
         id: Date.now().toString() + Math.random(),
         text,
         x: Math.random() * 80 + 5, // 5% to 85% width
-        y: -10,
+        y: -10, // Start slightly above
         speed: (Math.random() * 0.1 + 0.05) * speedMultiplier.current
       };
       setWords(prev => [...prev, newWord]);
@@ -186,8 +194,8 @@ const TypingGame: React.FC<TypingGameProps> = ({ onExit }) => {
       {/* Input Zone */}
       <div className="p-6 bg-slate-800 flex justify-center z-10 shrink-0">
         <input
+          ref={inputRef}
           type="text"
-          autoFocus
           value={input}
           onChange={handleInputChange}
           placeholder={!isPlaying ? "点击开始游戏" : "输入掉落的单词..."}
