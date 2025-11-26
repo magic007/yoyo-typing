@@ -73,6 +73,11 @@ export default function App() {
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (mode !== AppMode.PRACTICE || endTime) return;
 
+    // Prevent scrolling when Space is pressed
+    if (e.key === ' ') {
+      e.preventDefault();
+    }
+
     // Ignore modifiers
     if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Tab'].includes(e.key)) return;
     
