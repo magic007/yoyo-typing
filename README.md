@@ -11,15 +11,15 @@
 <div align="center">
 
 ### 🏠 练习大厅
-![Home](https://via.placeholder.com/800x450/f0f9ff/3b82f6?text=Home+Screen+Dashboard)
+![Home](img/Xnip2025-11-28_17-26-21.jpg)
 
 ### ⌨️ 沉浸式练习
 ![Practice](https://via.placeholder.com/800x450/ffffff/3b82f6?text=Typing+Practice+Interface)
 
 ### 🎮 趣味游戏
-| 🐸 青蛙过河 | ⚔️ 勇者斗恶龙 | 🏁 打字赛跑 |
+| 🐸 青蛙过河 | ⚔️ 勇者斗恶龙 | 🏁 打字赛跑 | 🏁 单词雨 |
 |:---:|:---:|:---:|
-| ![Frog](https://via.placeholder.com/300x200/4fc3f7/ffffff?text=Frog+Crossing) | ![Dragon](https://via.placeholder.com/300x200/1e293b/ffffff?text=Dragon+Slayer) | ![Race](https://via.placeholder.com/300x200/f8fafc/3b82f6?text=Typing+Race) |
+| ![Frog](img/Xnip2025-11-28_17-27-35.jpg) | ![Dragon](img/Xnip2025-11-28_17-27-23.jpg) | ![Race](img/Xnip2025-11-28_17-26-21.jpg) | ![Race](img/Xnip2025-11-28_17-27-07.jpg) |
 
 </div>
 
