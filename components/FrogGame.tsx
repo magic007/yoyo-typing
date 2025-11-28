@@ -91,7 +91,12 @@ const FrogGame: React.FC<FrogGameProps> = ({ onExit }) => {
   const requestRef = useRef<number>(0);
   const prevTimeRef = useRef<number>(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const speedMultiplier = useRef(1.0);
+  const laneObjectsRef = useRef<LaneObject[]>([]);
+
+  // Sync refs with state to use inside animation loop
+  useEffect(() => {
+    laneObjectsRef.current = laneObjects;
+  }, [laneObjects]);
 
   // --- Content Generators ---
 
@@ -203,38 +208,58 @@ const FrogGame: React.FC<FrogGameProps> = ({ onExit }) => {
     const deltaTime = time - prevTimeRef.current;
     prevTimeRef.current = time;
 
-    // Skip large jumps
+    // Skip large jumps or paused tabs
     if (deltaTime > 100) {
       requestRef.current = requestAnimationFrame(animate);
       return;
     }
 
+    // Static mode: no movement needed
+    if (config.isStatic) {
+      requestRef.current = requestAnimationFrame(animate);
+      return;
+    }
+
+    const currentLanes = laneObjectsRef.current;
+    if (currentLanes.length === 0) {
+      requestRef.current = requestAnimationFrame(animate);
+      return;
+    }
+
     let isDead = false;
+    let frogMoved = false;
+    let nextFrogX = 50;
 
-    // Only move if not static
-    if (!config.isStatic) {
-      setLaneObjects(prevLanes => {
-        return prevLanes.map((lane, index) => {
-          const rowNumber = index + 1;
-          
-          const moveAmount = lane.speed * lane.direction * deltaTime * 10;
-          let nextX = lane.x + moveAmount;
-          let nextDir = lane.direction;
+    // 1. Calculate new lane positions
+    const nextLanes = currentLanes.map((lane) => {
+      const moveAmount = lane.speed * lane.direction * deltaTime * 10;
+      let nextX = lane.x + moveAmount;
+      let nextDir = lane.direction;
 
-          // Bounce logic
-          if (nextX > 90) { nextDir = -1; nextX = 90; }
-          if (nextX < 10) { nextDir = 1; nextX = 10; }
+      // Bounce logic
+      if (nextX > 90) { nextDir = -1; nextX = 90; }
+      if (nextX < 10) { nextDir = 1; nextX = 10; }
 
-          // Sync Frog
-          if (frogRow === rowNumber && frogState !== 'JUMP' && frogState !== 'VICTORY') {
-             setFrogX(nextX);
-             // Basic boundary check (though bounce prevents falling usually)
-             if (nextX < 0 || nextX > 100) isDead = true;
-          }
+      return { ...lane, x: nextX, direction: nextDir };
+    });
 
-          return { ...lane, x: nextX, direction: nextDir };
-        });
-      });
+    // 2. Sync Frog if it's on a lane
+    // frogRow is 1-based (0=start, N+1=goal)
+    if (frogRow > 0 && frogRow <= config.laneCount && frogState !== 'JUMP' && frogState !== 'VICTORY' && frogState !== 'SINK') {
+       const laneIndex = frogRow - 1;
+       const lane = nextLanes[laneIndex];
+       if (lane) {
+         nextFrogX = lane.x;
+         frogMoved = true;
+         // Safety boundary check
+         if (lane.x < 0 || lane.x > 100) isDead = true;
+       }
+    }
+
+    // 3. Update State
+    setLaneObjects(nextLanes);
+    if (frogMoved) {
+      setFrogX(nextFrogX);
     }
 
     if (isDead) {
