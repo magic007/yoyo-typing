@@ -3,6 +3,8 @@ export enum AppMode {
   HOME = 'HOME',
   PRACTICE = 'PRACTICE',
   GAME = 'GAME',
+  RPGGAME = 'RPGGAME',
+  RACEGAME = 'RACEGAME',
   STATS = 'STATS'
 }
 

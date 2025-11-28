@@ -3,6 +3,8 @@ import { STATIC_LESSONS } from './constants';
 import { AppMode, Lesson, PracticeStats, Difficulty } from './types';
 import VirtualKeyboard from './components/VirtualKeyboard';
 import TypingGame from './components/TypingGame';
+import DragonGame from './components/DragonGame';
+import RaceGame from './components/RaceGame';
 import { generateLesson } from './services/geminiService';
 import { playClick, playError, playSuccess } from './services/soundService';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
@@ -304,15 +306,43 @@ export default function App() {
         {/* Right Column */}
         <div className="space-y-8">
           
-          {/* Game Mode */}
-          <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl p-8 shadow-xl text-white relative overflow-hidden group cursor-pointer"
+          {/* Game Mode: Word Rain */}
+          <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl p-8 shadow-xl text-white relative overflow-hidden group cursor-pointer transform hover:scale-[1.02] transition-transform"
                onClick={() => setMode(AppMode.GAME)}>
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-10 -mt-10 blur-2xl transition-all group-hover:bg-white/20"></div>
-            <h2 className="text-3xl font-cartoon mb-2">🎮 单词雨游戏</h2>
-            <p className="text-indigo-100 mb-4">趣味打字游戏，提升反应速度！</p>
-            <button className="bg-white text-indigo-600 px-6 py-2 rounded-full font-bold shadow-lg hover:scale-105 transition-transform">
-              开始挑战
-            </button>
+            <div className="relative z-10">
+               <h2 className="text-3xl font-cartoon mb-2">🎮 单词雨游戏</h2>
+               <p className="text-indigo-100 mb-4 text-sm font-bold opacity-90">Type fast or die trying!</p>
+               <button className="bg-white/20 hover:bg-white text-white hover:text-indigo-600 px-6 py-2 rounded-full font-bold border border-white/40 transition-all text-sm">
+                 开始挑战
+               </button>
+            </div>
+          </div>
+
+          {/* Game Mode: Typing Race (NEW) */}
+          <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-3xl p-8 shadow-xl text-white relative overflow-hidden group cursor-pointer transform hover:scale-[1.02] transition-transform"
+               onClick={() => setMode(AppMode.RACEGAME)}>
+            <div className="absolute bottom-0 right-0 w-40 h-24 bg-white/10 rounded-t-full -mr-10 blur-xl transition-all group-hover:bg-white/20"></div>
+            <div className="relative z-10">
+               <h2 className="text-3xl font-cartoon mb-2">🏁 打字赛跑</h2>
+               <p className="text-green-100 mb-4 text-sm font-bold opacity-90">与电脑比赛，谁跑得更快？</p>
+               <button className="bg-white/20 hover:bg-white text-white hover:text-green-600 px-6 py-2 rounded-full font-bold border border-white/40 transition-all text-sm">
+                 开始比赛
+               </button>
+            </div>
+          </div>
+
+          {/* Game Mode: Dragon Slayer */}
+          <div className="bg-gradient-to-br from-slate-700 to-slate-900 rounded-3xl p-8 shadow-xl text-white relative overflow-hidden group cursor-pointer transform hover:scale-[1.02] transition-transform border-4 border-slate-600"
+               onClick={() => setMode(AppMode.RPGGAME)}>
+            <div className="absolute -bottom-10 -right-10 text-9xl opacity-10 group-hover:opacity-20 transition-opacity">🐲</div>
+            <div className="relative z-10">
+               <h2 className="text-3xl font-cartoon mb-2 text-yellow-400">⚔️ 勇者斗恶龙</h2>
+               <p className="text-slate-300 mb-4 text-sm font-bold opacity-90">打字攻击！在恶龙行动前击败它！</p>
+               <button className="bg-yellow-500 hover:bg-yellow-400 text-slate-900 px-6 py-2 rounded-full font-bold shadow-lg transition-colors text-sm">
+                 开始冒险
+               </button>
+            </div>
           </div>
 
           {/* AI Generator */}
@@ -542,16 +572,30 @@ export default function App() {
 
   return (
     <div className={`
-      ${mode === AppMode.GAME ? 'h-screen overflow-hidden' : 'min-h-screen'}
+      ${(mode === AppMode.GAME || mode === AppMode.RPGGAME || mode === AppMode.RACEGAME) ? 'h-screen overflow-hidden' : 'min-h-screen'}
       bg-[#f0f9ff] text-slate-800 font-sans selection:bg-blue-200 flex flex-col
     `}>
       {mode === AppMode.HOME && renderHome()}
       {mode === AppMode.PRACTICE && renderPractice()}
       
-      {/* Game Mode Container: Needs full height/width to support falling animation */}
+      {/* Game Mode: Word Rain */}
       {mode === AppMode.GAME && (
         <div className="h-full w-full p-4 md:p-8 flex flex-col flex-1">
           <TypingGame onExit={() => setMode(AppMode.HOME)} />
+        </div>
+      )}
+
+      {/* Game Mode: Dragon Slayer */}
+      {mode === AppMode.RPGGAME && (
+        <div className="h-full w-full p-0 flex flex-col flex-1">
+          <DragonGame onExit={() => setMode(AppMode.HOME)} />
+        </div>
+      )}
+
+      {/* Game Mode: Race Game */}
+      {mode === AppMode.RACEGAME && (
+        <div className="h-full w-full p-0 flex flex-col flex-1">
+          <RaceGame onExit={() => setMode(AppMode.HOME)} />
         </div>
       )}
       

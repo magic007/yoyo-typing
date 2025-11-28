@@ -33,6 +33,7 @@ const TypingGame: React.FC<TypingGameProps> = ({ onExit }) => {
     const now = performance.now();
     lastSpawnRef.current = 0; // Force immediate spawn on first loop
     previousTimeRef.current = now;
+    speedMultiplier.current = 1;
     
     // Focus input
     setTimeout(() => {
@@ -127,8 +128,9 @@ const TypingGame: React.FC<TypingGameProps> = ({ onExit }) => {
 
   // Difficulty scaling
   useEffect(() => {
-    // Increase speed by 10% every 200 points
-    speedMultiplier.current = 1 + (score / 500);
+    // Increase speed more gradually: score / 2500 instead of / 500
+    // This allows students to play longer before it gets too fast
+    speedMultiplier.current = 1 + (score / 2500);
   }, [score]);
 
   // Input handling
@@ -149,26 +151,37 @@ const TypingGame: React.FC<TypingGameProps> = ({ onExit }) => {
   return (
     <div className="relative w-full flex-1 flex flex-col bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-700 min-h-[400px]">
       
-      {/* HUD */}
-      <div className="flex justify-between items-center p-4 bg-slate-800 text-white z-10 shrink-0 shadow-md">
-        <div className="flex gap-6 items-center">
-          <span className="font-cartoon text-2xl text-yellow-400 drop-shadow-md">得分: {score}</span>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-400 font-bold uppercase tracking-wider">剩余生命</span>
-            <span className="font-cartoon text-2xl text-red-500 flex gap-1">
-               {Array.from({length: 3}).map((_, i) => (
-                  <span key={i} className={i < lives ? "opacity-100 scale-100" : "opacity-20 scale-75 grayscale"}>❤️</span>
-               ))}
+      {/* HUD - Top Status Bar */}
+      <div className="flex justify-between items-center p-4 bg-slate-800 text-white z-10 shrink-0 shadow-md border-b border-slate-700">
+        <div className="flex gap-4 sm:gap-6 items-center flex-wrap">
+          {/* Score */}
+          <span className="font-cartoon text-xl sm:text-2xl text-yellow-400 drop-shadow-md whitespace-nowrap">
+            得分: {score}
+          </span>
+          
+          {/* Lives Display - Explicit Text + Icons */}
+          <div className="flex items-center gap-3 bg-slate-700/50 px-3 py-1 rounded-lg border border-slate-600">
+            <span className="text-sm text-slate-300 font-bold whitespace-nowrap">
+              剩余生命: <span className="text-white text-lg">{lives}</span>
             </span>
+            <div className="flex gap-0.5">
+               {Array.from({length: 3}).map((_, i) => (
+                  <span key={i} className={`text-xl ${i < lives ? "grayscale-0 opacity-100 scale-110" : "grayscale opacity-20 scale-90"} transition-all duration-300`}>❤️</span>
+               ))}
+            </div>
           </div>
         </div>
         
-        {/* Difficulty Badge */}
-        <div className="hidden sm:block px-3 py-1 rounded-full bg-slate-700 text-xs text-slate-300 font-mono border border-slate-600">
-           SPEED: {speedMultiplier.current.toFixed(1)}x
-        </div>
+        <div className="flex items-center gap-3">
+          {/* Difficulty Badge */}
+          <div className="hidden sm:block px-3 py-1 rounded-full bg-slate-700 text-xs text-slate-300 font-mono border border-slate-600 whitespace-nowrap">
+             SPEED: {speedMultiplier.current.toFixed(1)}x
+          </div>
 
-        <button onClick={onExit} className="px-4 py-1.5 bg-slate-600 hover:bg-slate-500 rounded-lg text-sm font-bold transition-colors border-b-4 border-slate-800 active:border-b-0 active:translate-y-1">退出游戏</button>
+          <button onClick={onExit} className="px-4 py-1.5 bg-slate-600 hover:bg-slate-500 rounded-lg text-sm font-bold transition-colors border-b-4 border-slate-800 active:border-b-0 active:translate-y-1 whitespace-nowrap">
+            退出游戏
+          </button>
+        </div>
       </div>
 
       {/* Game Area */}
@@ -213,7 +226,8 @@ const TypingGame: React.FC<TypingGameProps> = ({ onExit }) => {
                 <p className="text-slate-300 mb-2">🎮 游戏规则</p>
                 <ul className="text-sm text-slate-400 space-y-1 text-left inline-block">
                    <li>• 单词落地前输入完整拼写</li>
-                   <li>• 漏掉一个单词扣除一颗心 ❤️</li>
+                   <li>• 漏掉一个单词扣除 1 点生命</li>
+                   <li>• 3 点生命全部扣完则游戏结束</li>
                    <li>• 随着分数增加，速度会变快！</li>
                 </ul>
              </div>
