@@ -93,11 +93,6 @@ const FrogGame: React.FC<FrogGameProps> = ({ onExit }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const laneObjectsRef = useRef<LaneObject[]>([]);
 
-  // Sync refs with state to use inside animation loop
-  useEffect(() => {
-    laneObjectsRef.current = laneObjects;
-  }, [laneObjects]);
-
   // --- Content Generators ---
 
   const getRandomChar = () => {
@@ -177,7 +172,10 @@ const FrogGame: React.FC<FrogGameProps> = ({ onExit }) => {
     setInput('');
     resetFrog();
     
-    setLaneObjects(generateLevelData(mode, 1));
+    const initialLanes = generateLevelData(mode, 1);
+    setLaneObjects(initialLanes);
+    laneObjectsRef.current = initialLanes; // Sync Ref immediately
+
     setTimeout(() => inputRef.current?.focus(), 50);
   };
 
@@ -192,11 +190,42 @@ const FrogGame: React.FC<FrogGameProps> = ({ onExit }) => {
     const nextLvl = level + 1;
     setLevel(nextLvl);
     setScore(s => s + (currentMode === 'EXPERT' ? 100 : 50));
-    setLaneObjects(generateLevelData(currentMode, nextLvl));
+    
+    const newLanes = generateLevelData(currentMode, nextLvl);
+    setLaneObjects(newLanes);
+    laneObjectsRef.current = newLanes; // Sync Ref immediately
+
     resetFrog();
     setInput('');
     setGameState('PLAYING'); // Resume
     setTimeout(() => inputRef.current?.focus(), 50);
+  };
+
+  // --- Logic ---
+
+  const handleLifeLoss = () => {
+    if (!currentMode) return;
+    const config = CONFIGS[currentMode];
+
+    playError();
+    
+    // Static mode: no life loss, just visual shake (handled in input)
+    if (config.isStatic) return;
+
+    setFrogState('SINK');
+    setLives(l => {
+      const newLives = l - 1;
+      if (newLives <= 0) {
+        setGameState('GAME_OVER');
+      } else {
+        // Reset frog after delay
+        setTimeout(() => {
+          resetFrog();
+          setInput('');
+        }, 800);
+      }
+      return newLives;
+    });
   };
 
   // --- Animation Loop ---
@@ -230,7 +259,7 @@ const FrogGame: React.FC<FrogGameProps> = ({ onExit }) => {
     let frogMoved = false;
     let nextFrogX = 50;
 
-    // 1. Calculate new lane positions
+    // 1. Calculate new lane positions based on Ref data
     const nextLanes = currentLanes.map((lane) => {
       const moveAmount = lane.speed * lane.direction * deltaTime * 10;
       let nextX = lane.x + moveAmount;
@@ -256,8 +285,10 @@ const FrogGame: React.FC<FrogGameProps> = ({ onExit }) => {
        }
     }
 
-    // 3. Update State
-    setLaneObjects(nextLanes);
+    // 3. Update State & Ref
+    laneObjectsRef.current = nextLanes; // Update Ref for next frame
+    setLaneObjects(nextLanes);          // Update State for render
+
     if (frogMoved) {
       setFrogX(nextFrogX);
     }
@@ -268,7 +299,7 @@ const FrogGame: React.FC<FrogGameProps> = ({ onExit }) => {
     }
 
     requestRef.current = requestAnimationFrame(animate);
-  }, [gameState, currentMode, frogRow, frogState]);
+  }, [gameState, currentMode, frogRow, frogState]); // handleLifeLoss is stable enough
 
   useEffect(() => {
     if (gameState === 'PLAYING') {
@@ -278,32 +309,6 @@ const FrogGame: React.FC<FrogGameProps> = ({ onExit }) => {
     return () => cancelAnimationFrame(requestRef.current);
   }, [animate, gameState]);
 
-  // --- Logic ---
-
-  const handleLifeLoss = () => {
-    if (!currentMode) return;
-    const config = CONFIGS[currentMode];
-
-    playError();
-    
-    // Static mode: no life loss, just visual shake (handled in input)
-    if (config.isStatic) return;
-
-    setFrogState('SINK');
-    setLives(l => {
-      const newLives = l - 1;
-      if (newLives <= 0) {
-        setGameState('GAME_OVER');
-      } else {
-        // Reset frog after delay
-        setTimeout(() => {
-          resetFrog();
-          setInput('');
-        }, 800);
-      }
-      return newLives;
-    });
-  };
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (gameState !== 'PLAYING' || frogState === 'JUMP' || frogState === 'VICTORY' || !currentMode) return;
