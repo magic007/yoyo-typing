@@ -1,380 +1,580 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { GAME_WORDS } from '../constants';
+import { GAME_WORDS, STATIC_LESSONS } from '../constants';
 import { playClick, playError, playSuccess } from '../services/soundService';
 
 interface FrogGameProps {
   onExit: () => void;
 }
 
-// Lane definition
-interface Lane {
-  id: string;
-  word: string;
-  speed: number; // % screen width per frame (scaled by delta)
-  direction: 1 | -1; // 1 = Left to Right, -1 = Right to Left
-  x: number; // 0 to 100%
-  width: number; // visual width in %
-  type: 'LILYPAD' | 'LOG';
+// 游戏模式定义
+type GameMode = 'BEGINNER' | 'INTERMEDIATE' | 'EXPERT';
+
+interface GameConfig {
+  mode: GameMode;
+  laneCount: number;
+  baseSpeed: number;
+  wordType: 'CHAR' | 'SHORT_WORD' | 'LONG_WORD';
+  isStatic: boolean; // 是否静止
+  hasLives: boolean; // 是否有生命值
+  lives: number;
+  description: string;
+  title: string;
 }
 
+// 每一行荷叶的数据结构
+interface LaneObject {
+  id: string;
+  word: string;
+  x: number; // 0 to 100%
+  width: number; // %
+  speed: number; // % per ms
+  direction: 1 | -1;
+  type: 'LILYPAD' | 'LOG' | 'STONE';
+}
+
+const CONFIGS: Record<GameMode, GameConfig> = {
+  BEGINNER: {
+    mode: 'BEGINNER',
+    title: '入门级 (指法练习)',
+    description: '3层荷叶 · 静止不动 · 单字母练习 · 无需担心失败',
+    laneCount: 3,
+    baseSpeed: 0,
+    wordType: 'CHAR',
+    isStatic: true,
+    hasLives: false,
+    lives: 999
+  },
+  INTERMEDIATE: {
+    mode: 'INTERMEDIATE',
+    title: '进阶级 (单词拼写)',
+    description: '5层荷叶 · 缓慢移动 · 短单词 · 3条生命',
+    laneCount: 5,
+    baseSpeed: 0.002,
+    wordType: 'SHORT_WORD',
+    isStatic: false,
+    hasLives: true,
+    lives: 3
+  },
+  EXPERT: {
+    mode: 'EXPERT',
+    title: '高手级 (极速挑战)',
+    description: '8层荷叶 · 快速交错 · 长单词 · 挑战手速极限',
+    laneCount: 8,
+    baseSpeed: 0.005,
+    wordType: 'LONG_WORD',
+    isStatic: false,
+    hasLives: true,
+    lives: 3
+  }
+};
+
 const FrogGame: React.FC<FrogGameProps> = ({ onExit }) => {
-  // Game State
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [gameOver, setGameOver] = useState(false);
+  // --- State ---
+  const [currentMode, setCurrentMode] = useState<GameMode | null>(null);
+  const [gameState, setGameState] = useState<'MENU' | 'PLAYING' | 'GAME_OVER' | 'VICTORY'>('MENU');
+  
+  const [level, setLevel] = useState(1);
   const [score, setScore] = useState(0);
-  const [lanes, setLanes] = useState<Lane[]>([]);
+  const [lives, setLives] = useState(3);
+  
+  // Lanes: Index 0 is unused (Start Bank). Index 1..N are lanes. N+1 is Goal.
+  const [laneObjects, setLaneObjects] = useState<LaneObject[]>([]);
+  
+  const [frogRow, setFrogRow] = useState(0);
+  const [frogX, setFrogX] = useState(50);
+  const [frogState, setFrogState] = useState<'IDLE' | 'JUMP' | 'SINK' | 'VICTORY' | 'SHAKE'>('IDLE');
+  
   const [input, setInput] = useState('');
-  
-  // Animation State
-  const [frogState, setFrogState] = useState<'IDLE' | 'JUMP' | 'SINK'>('IDLE');
-  const [frogX, setFrogX] = useState(50); // Visual X position of frog (percent)
-  const [isJumping, setIsJumping] = useState(false); // Pause game loop during jump
-  
+
   // Refs
   const requestRef = useRef<number>(0);
   const prevTimeRef = useRef<number>(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const speedMultiplier = useRef(1.0);
 
-  // Constants
-  const LANE_COUNT = 5; // Number of visible lanes ahead
+  // --- Content Generators ---
 
-  // --- Logic ---
-
-  const generateLane = (idPrefix: string, index: number): Lane => {
-    const word = GAME_WORDS[Math.floor(Math.random() * GAME_WORDS.length)];
-    
-    // Base speed increases with score
-    const baseSpeed = 0.005 + (Math.random() * 0.005); 
-    const speed = baseSpeed * speedMultiplier.current;
-
-    // FIX: Spawn completely within visible area (10% to 90%)
-    const startX = 10 + Math.random() * 80; 
-    
-    // FIX: Direction is determined by position (move towards center to maximize visibility duration)
-    const direction = startX > 50 ? -1 : 1;
-
-    return {
-      id: `${idPrefix}-${index}-${Math.random().toString(36).substr(2, 5)}`, // Ensure unique ID
-      word,
-      speed,
-      direction,
-      x: startX,
-      width: 20, 
-      type: Math.random() > 0.7 ? 'LOG' : 'LILYPAD'
-    };
+  const getRandomChar = () => {
+    const chars = "abcdefghijklmnopqrstuvwxyz";
+    return chars[Math.floor(Math.random() * chars.length)];
   };
 
-  const startGame = () => {
-    setIsPlaying(true);
-    setGameOver(false);
-    setScore(0);
-    setInput('');
-    setFrogState('IDLE');
-    setFrogX(50);
-    setIsJumping(false);
-    speedMultiplier.current = 1.0;
-
-    // Generate initial lanes
-    const initialLanes = Array.from({ length: LANE_COUNT }).map((_, i) => {
-        return generateLane('init', i);
-    });
-    setLanes(initialLanes);
-
-    prevTimeRef.current = performance.now();
-    requestRef.current = requestAnimationFrame(animate);
+  const getRandomWord = (type: 'SHORT_WORD' | 'LONG_WORD') => {
+    // Filter words based on length
+    const shortWords = GAME_WORDS.filter(w => w.length <= 4);
+    const longWords = GAME_WORDS.filter(w => w.length > 4);
     
+    // Add some extra long words for expert mode
+    const extraLong = ["typing", "master", "student", "keyboard", "practice", "school", "friend", "animal"];
+    
+    const source = type === 'SHORT_WORD' ? shortWords : [...longWords, ...extraLong];
+    return source[Math.floor(Math.random() * source.length)] || "bug";
+  };
+
+  const generateLevelData = (mode: GameMode, lvl: number) => {
+    const config = CONFIGS[mode];
+    const newLanes: LaneObject[] = [];
+    
+    for (let i = 1; i <= config.laneCount; i++) {
+      let word = "";
+      if (config.wordType === 'CHAR') word = getRandomChar();
+      else word = getRandomWord(config.wordType);
+
+      // Speed calculation
+      let speed = config.baseSpeed;
+      if (!config.isStatic) {
+        speed += (lvl * 0.0002); // Increment slightly per level
+        // Random variance per lane
+        speed *= (0.8 + Math.random() * 0.4); 
+      }
+
+      // Direction: Alternate or Random
+      const direction = i % 2 !== 0 ? 1 : -1;
+
+      // Position:
+      // If static: Center or spread out slightly
+      // If dynamic: Random 10-90
+      let startX = 50;
+      if (!config.isStatic) {
+        startX = 15 + Math.random() * 70;
+      } else {
+        // Stagger static pads slightly for visual interest
+        startX = 50 + (i % 2 === 0 ? 10 : -10); 
+      }
+
+      newLanes.push({
+        id: `row-${i}-${Date.now()}-${Math.random()}`,
+        word,
+        x: startX,
+        width: config.mode === 'EXPERT' ? 18 : 22, // Smaller pads for expert
+        speed,
+        direction,
+        type: config.mode === 'BEGINNER' ? 'LILYPAD' : (i % 2 === 0 ? 'LOG' : 'LILYPAD')
+      });
+    }
+    return newLanes;
+  };
+
+  // --- Game Flow ---
+
+  const selectMode = (mode: GameMode) => {
+    setCurrentMode(mode);
+    startGame(mode);
+  };
+
+  const startGame = (mode: GameMode) => {
+    const config = CONFIGS[mode];
+    setGameState('PLAYING');
+    setLevel(1);
+    setScore(0);
+    setLives(config.lives);
+    setInput('');
+    resetFrog();
+    
+    setLaneObjects(generateLevelData(mode, 1));
     setTimeout(() => inputRef.current?.focus(), 50);
   };
 
+  const resetFrog = () => {
+    setFrogRow(0);
+    setFrogX(50);
+    setFrogState('IDLE');
+  };
+
+  const nextLevel = () => {
+    if (!currentMode) return;
+    const nextLvl = level + 1;
+    setLevel(nextLvl);
+    setScore(s => s + (currentMode === 'EXPERT' ? 100 : 50));
+    setLaneObjects(generateLevelData(currentMode, nextLvl));
+    resetFrog();
+    setInput('');
+    setGameState('PLAYING'); // Resume
+    setTimeout(() => inputRef.current?.focus(), 50);
+  };
+
+  // --- Animation Loop ---
+
   const animate = useCallback((time: number) => {
-    if (gameOver || !isPlaying) return;
+    if (gameState !== 'PLAYING' || !currentMode) return;
+    const config = CONFIGS[currentMode];
 
     const deltaTime = time - prevTimeRef.current;
     prevTimeRef.current = time;
 
-    // Skip updates if huge lag or strictly paused for jump
-    if (deltaTime > 100 || isJumping) {
-        requestRef.current = requestAnimationFrame(animate);
-        return;
+    // Skip large jumps
+    if (deltaTime > 100) {
+      requestRef.current = requestAnimationFrame(animate);
+      return;
     }
 
-    // 1. Move Lanes
-    setLanes(prevLanes => {
-        const nextLanes = prevLanes.map((lane) => {
-            const moveAmount = lane.speed * deltaTime * lane.direction * 10; // *10 scaling factor for visible speed
-            const newX = lane.x + moveAmount;
-            
-            // Bounce logic: if hits edge, reverse direction (keeps items on screen longer)
-            // Or just wrap? Bouncing is safer for gameplay.
-            let nextX = newX;
-            let nextDir = lane.direction;
-            
-            if (newX > 110) { nextDir = -1; nextX = 110; }
-            if (newX < -10) { nextDir = 1; nextX = -10; }
+    let isDead = false;
 
-            return { ...lane, x: nextX, direction: nextDir };
+    // Only move if not static
+    if (!config.isStatic) {
+      setLaneObjects(prevLanes => {
+        return prevLanes.map((lane, index) => {
+          const rowNumber = index + 1;
+          
+          const moveAmount = lane.speed * lane.direction * deltaTime * 10;
+          let nextX = lane.x + moveAmount;
+          let nextDir = lane.direction;
+
+          // Bounce logic
+          if (nextX > 90) { nextDir = -1; nextX = 90; }
+          if (nextX < 10) { nextDir = 1; nextX = 10; }
+
+          // Sync Frog
+          if (frogRow === rowNumber && frogState !== 'JUMP' && frogState !== 'VICTORY') {
+             setFrogX(nextX);
+             // Basic boundary check (though bounce prevents falling usually)
+             if (nextX < 0 || nextX > 100) isDead = true;
+          }
+
+          return { ...lane, x: nextX, direction: nextDir };
         });
+      });
+    }
 
-        // 2. Check Collision (Did the target lane move off screen?)
-        // With bounce logic, this is less likely, but still check bounds just in case logic fails
-        if (nextLanes.length > 0) {
-            const target = nextLanes[0];
-            const isOffScreen = target.x > 120 || target.x < -20;
-            
-            if (isOffScreen) {
-                // If we miss the lane, it's game over
-                handleGameOver();
-                return nextLanes;
-            }
-        }
-
-        return nextLanes;
-    });
+    if (isDead) {
+      handleLifeLoss();
+      return;
+    }
 
     requestRef.current = requestAnimationFrame(animate);
-  }, [gameOver, isPlaying, isJumping]); 
-
-  const handleGameOver = () => {
-      setFrogState('SINK');
-      playError();
-      setGameOver(true);
-      setIsPlaying(false);
-      cancelAnimationFrame(requestRef.current);
-  };
+  }, [gameState, currentMode, frogRow, frogState]);
 
   useEffect(() => {
-      return () => cancelAnimationFrame(requestRef.current);
-  }, []);
+    if (gameState === 'PLAYING') {
+      prevTimeRef.current = performance.now();
+      requestRef.current = requestAnimationFrame(animate);
+    }
+    return () => cancelAnimationFrame(requestRef.current);
+  }, [animate, gameState]);
 
-  // --- Input ---
+  // --- Logic ---
+
+  const handleLifeLoss = () => {
+    if (!currentMode) return;
+    const config = CONFIGS[currentMode];
+
+    playError();
+    
+    // Static mode: no life loss, just visual shake (handled in input)
+    if (config.isStatic) return;
+
+    setFrogState('SINK');
+    setLives(l => {
+      const newLives = l - 1;
+      if (newLives <= 0) {
+        setGameState('GAME_OVER');
+      } else {
+        // Reset frog after delay
+        setTimeout(() => {
+          resetFrog();
+          setInput('');
+        }, 800);
+      }
+      return newLives;
+    });
+  };
+
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (!isPlaying || gameOver || isJumping) return;
-      
-      const val = e.target.value.toLowerCase().trim();
-      
-      // Target is always lane 0
-      const targetLane = lanes[0];
-      if (!targetLane) return;
+    if (gameState !== 'PLAYING' || frogState === 'JUMP' || frogState === 'VICTORY' || !currentMode) return;
 
-      if (!targetLane.word.startsWith(val)) {
-          playError();
-          return; 
+    const val = e.target.value.toLowerCase().trim();
+    const config = CONFIGS[currentMode];
+    
+    // Target is always next row
+    const targetRowIndex = frogRow; 
+    if (targetRowIndex >= laneObjects.length) return;
+    const targetObject = laneObjects[targetRowIndex];
+
+    // Check matching
+    if (!targetObject.word.startsWith(val)) {
+      playError();
+      setInput(''); // Clear input
+      
+      if (config.mode === 'BEGINNER') {
+        // Beginner: Shake indicator, no penalty
+        setFrogState('SHAKE');
+        setTimeout(() => setFrogState('IDLE'), 300);
+      } else {
+        // Others: Penalty
+        handleLifeLoss();
       }
-      
-      playClick();
-      setInput(val);
+      return;
+    }
 
-      if (val === targetLane.word) {
-          playSuccess();
-          triggerJump(targetLane);
-      }
-  };
+    // Input correct so far
+    playClick();
+    setInput(val);
 
-  const triggerJump = (target: Lane) => {
-      setIsJumping(true); // Pause lane movement
-      setFrogState('JUMP');
-      setFrogX(target.x); // Visual jump to the pad's X position
-      
-      const newScore = score + 1;
-      setScore(newScore);
-      
-      if (newScore % 5 === 0) {
-          speedMultiplier.current += 0.1;
-      }
-
+    // Full word match?
+    if (val === targetObject.word) {
+      playSuccess();
       setInput('');
-
-      // Sequence: Jump up (300ms) -> Shift World (reset) -> Land
-      setTimeout(() => {
-        setLanes(prev => {
-            const remaining = prev.slice(1);
-            // Spawn NEW lane at end
-            const newLane = generateLane(`lane-${Date.now()}`, remaining.length);
-            return [...remaining, newLane];
-        });
-        
-        // Reset frog to center for the new layout (optional, but keeps game centered)
-        // Actually, keep frog at landed position for continuity until next jump?
-        // But the world shifts down, so the pad under frog disappears. 
-        // Best visual trick: Reset frog to center, but spawn the next pad under it?
-        // No, simplest is: Frog lands, then "camera moves up" (lanes shift down), 
-        // Frog stays relatively at bottom center.
-        setFrogX(50); 
-        setFrogState('IDLE');
-        setIsJumping(false); // Resume movement
-        
-        prevTimeRef.current = performance.now();
-
-      }, 400); // Matches transition duration
+      triggerJump(targetRowIndex + 1, targetObject.x);
+    }
   };
 
-  // --- Render ---
+  const triggerJump = (nextRow: number, landingX: number) => {
+    setFrogState('JUMP');
+    setFrogX(landingX);
+    
+    setTimeout(() => {
+      setFrogRow(nextRow);
+      setScore(s => s + 10);
 
-  return (
-    <div className="w-full h-full bg-cyan-900 relative overflow-hidden flex flex-col font-sans select-none">
-       {/* Water Background Texture */}
-       <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] animate-pulse"></div>
-       
-       {/* UI HUD */}
-       <div className="relative z-20 flex justify-between items-center p-4 bg-cyan-950/50 backdrop-blur-md border-b border-cyan-700 text-white shadow-lg">
-          <div className="flex items-center gap-4">
-              <span className="text-3xl">🐸</span>
-              <div>
-                  <div className="text-xs text-cyan-300 font-bold uppercase tracking-wider">Score</div>
-                  <div className="text-2xl font-bold font-mono text-yellow-400">{score}</div>
-              </div>
-          </div>
-          
-          {isPlaying && !gameOver && (
-              <div className="bg-cyan-800 px-4 py-1 rounded-full text-cyan-200 text-sm font-bold border border-cyan-600">
-                  速度: {speedMultiplier.current.toFixed(1)}x
-              </div>
-          )}
+      // Check if reached Goal
+      if (currentMode && nextRow === CONFIGS[currentMode].laneCount + 1) {
+         // Reached goal
+         setFrogState('VICTORY');
+         setGameState('VICTORY'); // Show level complete overlay
+      } else {
+         setFrogState('IDLE');
+      }
+    }, 300);
+  };
 
-          <button onClick={onExit} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-bold border border-slate-500">
-              退出
-          </button>
-       </div>
+  // --- Rendering ---
 
-       {/* Game Area */}
-       <div className="flex-1 relative flex flex-col justify-end pb-24 overflow-hidden perspective-1000">
-          
-          {/* Lanes */}
-          {lanes.map((lane, index) => {
-              // Lane 0 is closest (bottom)
-              const bottomOffset = 180 + (index * 100); 
-              const scale = 1 - (index * 0.05); 
-              const opacity = 1 - (index * 0.15); 
+  // Helper to calculate positions based on lane count
+  const getLayout = (laneCount: number) => {
+    // Top bank 15%, Bottom bank 15%, River 70%
+    const riverH = 70;
+    const rowH = riverH / laneCount;
+    return { rowH };
+  };
+
+  const renderMenu = () => (
+    <div className="absolute inset-0 bg-slate-900 z-50 flex flex-col items-center justify-center p-4">
+      <h1 className="text-5xl font-cartoon text-green-400 mb-8 animate-bounce-slow">🐸 青蛙过河</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl">
+         {(['BEGINNER', 'INTERMEDIATE', 'EXPERT'] as GameMode[]).map(m => (
+           <button 
+             key={m}
+             onClick={() => selectMode(m)}
+             className={`
+               relative group p-6 rounded-2xl border-4 transition-all hover:-translate-y-2
+               ${m === 'BEGINNER' ? 'bg-green-100 border-green-500 hover:shadow-green-500/50' : ''}
+               ${m === 'INTERMEDIATE' ? 'bg-blue-100 border-blue-500 hover:shadow-blue-500/50' : ''}
+               ${m === 'EXPERT' ? 'bg-purple-100 border-purple-500 hover:shadow-purple-500/50' : ''}
+             `}
+           >
+             <div className="text-4xl mb-4 text-center">
+               {m === 'BEGINNER' ? '👶' : m === 'INTERMEDIATE' ? '👦' : '🧑‍🎓'}
+             </div>
+             <h3 className={`text-2xl font-bold mb-2 text-center
+                ${m === 'BEGINNER' ? 'text-green-700' : ''}
+                ${m === 'INTERMEDIATE' ? 'text-blue-700' : ''}
+                ${m === 'EXPERT' ? 'text-purple-700' : ''}
+             `}>{CONFIGS[m].title}</h3>
+             <p className="text-slate-600 text-sm text-center font-bold opacity-80 mb-4">{CONFIGS[m].description}</p>
+             
+             {m === 'EXPERT' && (
+               <div className="absolute -top-3 -right-3 bg-red-500 text-white text-xs px-2 py-1 rounded-full animate-pulse">挑战！</div>
+             )}
+           </button>
+         ))}
+      </div>
+      <button onClick={onExit} className="mt-12 text-slate-500 hover:text-white underline">返回主菜单</button>
+    </div>
+  );
+
+  const renderGame = () => {
+    if (!currentMode) return null;
+    const config = CONFIGS[currentMode];
+    const { rowH } = getLayout(config.laneCount);
+
+    return (
+      <div className="w-full h-full relative bg-cyan-800 overflow-hidden flex flex-col font-sans select-none">
+        
+        {/* HUD */}
+        <div className="absolute top-0 left-0 right-0 z-30 flex justify-between items-center p-4 bg-black/30 text-white backdrop-blur-sm">
+           <div className="flex gap-6 items-center">
+              <span className="px-2 py-1 bg-white/20 rounded font-bold text-sm">{config.title}</span>
+              <span className="font-cartoon text-xl text-yellow-300">Level {level}</span>
+              <span className="font-mono font-bold">Score: {score}</span>
+           </div>
+           
+           {config.hasLives && (
+             <div className="flex gap-1">
+                {Array.from({length: config.lives}).map((_, i) => (
+                  <span key={i} className={`text-xl ${i < lives ? 'opacity-100' : 'opacity-20 grayscale'}`}>❤️</span>
+                ))}
+             </div>
+           )}
+           
+           <button onClick={() => setGameState('MENU')} className="px-3 py-1 bg-red-500/80 hover:bg-red-500 rounded text-sm font-bold">
+             结束
+           </button>
+        </div>
+
+        {/* --- GAME SCENE --- */}
+        <div className="flex-1 relative w-full bg-[#4fc3f7]">
+           {/* Water Texture */}
+           <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+
+           {/* TOP BANK (GOAL) */}
+           <div className="absolute top-0 w-full h-[15%] bg-emerald-600 border-b-8 border-emerald-800 z-10 flex items-center justify-center shadow-lg">
+              <div className="text-4xl opacity-50 tracking-[1rem]">🏁🏁🏁</div>
+           </div>
+
+           {/* LANES */}
+           {laneObjects.map((lane, index) => {
+             // Calculate Top Position
+             // Goal is top 15%. Start is bottom 15%. River is middle 70%.
+             // Lane 1 is bottom-most river lane. Lane N is top-most.
+             // We map index 0 (Lane 1) to the bottom of the river section.
+             const laneIndex = index; // 0 to N-1
+             const topPos = 15 + ((config.laneCount - 1 - laneIndex) * rowH);
+             
+             const isNextTarget = (frogRow === laneIndex);
+             const showError = isNextTarget && frogState === 'SHAKE';
+
+             return (
+               <div 
+                 key={lane.id}
+                 className="absolute w-full border-t border-b border-white/10"
+                 style={{ top: `${topPos}%`, height: `${rowH}%` }}
+               >
+                 <div className="absolute w-full h-full flex items-center" 
+                      style={{ 
+                        left: `${lane.x}%`, 
+                        width: `${lane.width}%`,
+                        transform: 'translateX(-50%)',
+                        transition: config.isStatic ? 'none' : 'left 0.1s linear' // Smooth out visual jitters
+                      }}>
+                    
+                    {/* The Pad/Log */}
+                    <div className={`
+                       relative w-full h-[80%] flex items-center justify-center shadow-lg transition-transform
+                       ${lane.type === 'LOG' ? 'bg-amber-700 rounded-sm border-y-4 border-amber-900' : 'bg-green-500 rounded-full border-4 border-green-700'}
+                       ${isNextTarget ? 'ring-4 ring-yellow-400 scale-105 z-20' : 'opacity-90'}
+                       ${showError ? 'animate-shake ring-red-500 ring-4' : ''}
+                    `}>
+                       {/* Word Label */}
+                       <span className={`
+                          font-mono font-bold text-white drop-shadow-md bg-black/40 px-2 py-0.5 rounded
+                          ${config.mode === 'EXPERT' ? 'text-sm md:text-base' : 'text-xl md:text-2xl'}
+                          ${isNextTarget ? 'text-yellow-200' : ''}
+                       `}>
+                          {isNextTarget ? (
+                            <>
+                              <span className="text-green-400">{lane.word.slice(0, input.length)}</span>
+                              <span>{lane.word.slice(input.length)}</span>
+                            </>
+                          ) : lane.word}
+                       </span>
+                    </div>
+
+                 </div>
+               </div>
+             )
+           })}
+
+           {/* BOTTOM BANK (START) */}
+           <div className="absolute bottom-0 w-full h-[15%] bg-emerald-600 border-t-8 border-emerald-800 z-10 flex items-center justify-center shadow-lg">
+              {frogRow === 0 && <div className="text-white/60 font-bold animate-pulse">START</div>}
+           </div>
+
+           {/* FROG */}
+           {(() => {
+              // Calculate Frog Y
+              let frogTop = 92.5; // Center of bottom bank (15% height -> center is 7.5% from bottom -> 92.5% top)
               
-              const isTarget = index === 0;
+              if (frogRow === 0) {
+                 frogTop = 92.5;
+              } else if (frogRow === config.laneCount + 1) {
+                 frogTop = 7.5; // Center of top bank
+              } else {
+                 // On a lane
+                 const laneIndex = frogRow - 1;
+                 const laneTop = 15 + ((config.laneCount - 1 - laneIndex) * rowH);
+                 frogTop = laneTop + (rowH / 2);
+              }
 
               return (
-                  <div 
-                    key={lane.id}
-                    className="absolute w-full h-20 flex items-center transition-all duration-300"
-                    style={{ 
-                        bottom: `${bottomOffset}px`,
-                        zIndex: 10 - index,
-                        opacity: opacity,
-                        transform: `scale(${scale})`
-                    }}
-                  >
-                      {/* River Lane Visual */}
-                      <div className="absolute inset-0 bg-blue-500/10 border-t border-b border-blue-400/20 w-full"></div>
-
-                      {/* Moving Object (Pad/Log) */}
-                      <div 
-                        className="absolute flex flex-col items-center justify-center will-change-transform"
-                        style={{ 
-                            left: `${lane.x}%`, 
-                            width: '180px', 
-                            transform: 'translateX(-50%)',
-                            transition: isJumping ? 'none' : 'left 0.1s linear'
-                        }}
-                      >
-                          {/* Sprite */}
-                          <div className={`
-                             w-32 h-12 rounded-full shadow-lg flex items-center justify-center mb-2 relative transition-transform
-                             ${lane.type === 'LILYPAD' ? 'bg-green-600 border-4 border-green-800' : 'bg-amber-800 border-4 border-amber-950 rounded-sm'}
-                             ${isTarget ? 'ring-4 ring-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.6)] scale-110' : ''}
-                          `}>
-                              {/* Decor */}
-                              {lane.type === 'LILYPAD' && <div className="absolute top-1 right-2 w-0 h-0 border-l-[10px] border-l-transparent border-t-[15px] border-t-cyan-900/40 -rotate-45"></div>}
-                          </div>
-
-                          {/* Text Label */}
-                          <div className={`
-                             px-3 py-1 rounded-lg font-mono font-bold text-xl backdrop-blur-sm shadow-md whitespace-nowrap transition-colors
-                             ${isTarget ? 'bg-black/70 text-white border border-yellow-400/50' : 'bg-black/30 text-white/70'}
-                          `}>
-                              {isTarget ? (
-                                  <>
-                                    <span className="text-green-400">{lane.word.slice(0, input.length)}</span>
-                                    <span>{lane.word.slice(input.length)}</span>
-                                  </>
-                              ) : (
-                                  lane.word
-                              )}
-                          </div>
-                      </div>
-                  </div>
+                <div 
+                  className={`
+                    absolute flex items-center justify-center transition-all duration-300 z-30
+                    ${frogState === 'JUMP' ? 'scale-150 z-50' : 'scale-100'}
+                    ${frogState === 'SINK' ? 'scale-0 rotate-180 opacity-0' : ''}
+                  `}
+                  style={{
+                    top: `${frogTop}%`,
+                    left: `${frogX}%`,
+                    width: '4rem',
+                    height: '4rem',
+                    transform: 'translate(-50%, -50%)'
+                  }}
+                >
+                   <div className="text-5xl drop-shadow-2xl">
+                     {frogState === 'VICTORY' ? '🥳' : '🐸'}
+                   </div>
+                   {/* Input Bubble */}
+                   {input && frogState !== 'VICTORY' && (
+                     <div className="absolute -top-8 bg-white text-slate-900 px-2 py-1 rounded text-xs font-bold whitespace-nowrap border-2 border-slate-300">
+                       {input}
+                     </div>
+                   )}
+                </div>
               );
-          })}
+           })()}
 
-          {/* Frog Character */}
-          <div 
-            className={`
-             absolute bottom-[40px] z-20 transition-all duration-300 ease-out
-             ${frogState === 'SINK' ? 'translate-y-[50px] opacity-0 rotate-12' : ''}
-            `}
-            style={{
-                left: `${frogX}%`,
-                transform: `translateX(-50%) ${frogState === 'JUMP' ? 'translateY(-140px) scale(1.5)' : 'translateY(0) scale(1)'}`
-            }}
-          >
-             <div className="text-7xl filter drop-shadow-xl">🐸</div>
-             {/* Ripple if idle */}
-             {frogState === 'IDLE' && <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-20 h-6 bg-black/20 rounded-full blur-sm animate-pulse"></div>}
-          </div>
+        </div>
 
-          {/* Input Focus Helper Text */}
-          <div className="absolute bottom-6 w-full text-center text-cyan-200/50 text-sm font-bold tracking-widest uppercase">
-              {isPlaying ? (gameOver ? "GAME OVER" : "输入单词以跳跃!") : "准备开始"}
-          </div>
+        {/* Input Capture */}
+        <input 
+          ref={inputRef}
+          type="text"
+          value={input}
+          onChange={handleInput}
+          className="absolute opacity-0 top-0 left-0 w-full h-full cursor-default"
+          autoFocus
+          onBlur={() => !['MENU', 'GAME_OVER', 'VICTORY'].includes(gameState) && inputRef.current?.focus()}
+        />
 
-       </div>
+        {/* --- OVERLAYS --- */}
 
-       {/* Start Screen */}
-       {!isPlaying && !gameOver && (
-           <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-50 backdrop-blur-sm animate-fade-in">
-               <h1 className="text-6xl font-cartoon text-green-400 mb-2 drop-shadow-[0_4px_0_rgba(0,0,0,1)]">青蛙过河</h1>
-               <p className="text-xl text-cyan-100 mb-8 font-medium">跟着节奏打字，帮助青蛙跳到荷叶上！</p>
-               <button 
-                  onClick={startGame}
-                  className="px-10 py-4 bg-green-500 hover:bg-green-400 text-green-900 rounded-full font-bold text-2xl shadow-[0_0_20px_rgba(34,197,94,0.6)] transition-transform hover:scale-105"
-               >
-                   开始跳跃 🚀
-               </button>
+        {/* Level Complete Overlay */}
+        {gameState === 'VICTORY' && (
+           <div className="absolute inset-0 bg-black/70 z-50 flex flex-col items-center justify-center animate-fade-in backdrop-blur-sm">
+              <div className="text-6xl mb-4 animate-bounce">🌟</div>
+              <h2 className="text-5xl font-cartoon text-yellow-300 mb-2">过关成功!</h2>
+              <p className="text-white text-xl mb-8">青蛙成功抵达对岸</p>
+              <button 
+                onClick={nextLevel}
+                className="px-10 py-4 bg-yellow-500 hover:bg-yellow-400 text-yellow-900 font-bold rounded-full text-2xl shadow-xl hover:scale-105 transition-transform"
+              >
+                下一关 ➡️
+              </button>
            </div>
-       )}
+        )}
 
-       {/* Game Over Screen */}
-       {gameOver && (
-           <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50 animate-fade-in">
-               <div className="text-8xl mb-4">💦</div>
-               <h2 className="text-5xl font-cartoon text-cyan-300 mb-4">落水啦!</h2>
-               <div className="text-2xl text-white mb-8 font-bold">
-                   最终得分: <span className="text-yellow-400 text-3xl ml-2">{score}</span>
-               </div>
-               <div className="flex gap-4">
-                   <button 
-                      onClick={startGame}
-                      className="px-8 py-3 bg-yellow-500 hover:bg-yellow-400 text-yellow-900 rounded-full font-bold text-xl shadow-lg transition-transform hover:scale-105"
-                   >
-                       再试一次
-                   </button>
-                   <button 
-                      onClick={onExit}
-                      className="px-8 py-3 bg-slate-600 hover:bg-slate-500 text-white rounded-full font-bold text-xl transition-transform hover:scale-105"
-                   >
-                       退出
-                   </button>
-               </div>
+        {/* Game Over Overlay */}
+        {gameState === 'GAME_OVER' && (
+           <div className="absolute inset-0 bg-black/80 z-50 flex flex-col items-center justify-center animate-fade-in backdrop-blur-sm">
+              <div className="text-6xl mb-4">💦</div>
+              <h2 className="text-5xl font-cartoon text-red-500 mb-4">挑战失败</h2>
+              <p className="text-slate-300 text-xl mb-8">最终得分: {score}</p>
+              <div className="flex gap-4">
+                 <button onClick={() => currentMode && startGame(currentMode)} className="px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-full text-lg">重试本关</button>
+                 <button onClick={() => setGameState('MENU')} className="px-8 py-3 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-full text-lg">返回菜单</button>
+              </div>
            </div>
-       )}
+        )}
 
-       {/* Hidden Input */}
-       <input 
-         ref={inputRef}
-         type="text" 
-         value={input} 
-         onChange={handleInput} 
-         className="absolute opacity-0 pointer-events-none" 
-         autoFocus
-         onBlur={() => !gameOver && isPlaying && inputRef.current?.focus()}
-       />
+      </div>
+    );
+  };
 
+  return (
+    <div className="w-full h-full">
+      {gameState === 'MENU' ? renderMenu() : renderGame()}
     </div>
   );
 };
