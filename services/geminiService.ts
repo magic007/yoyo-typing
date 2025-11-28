@@ -12,11 +12,11 @@ export const generateLesson = async (topic: string, difficulty: Difficulty): Pro
 
   let prompt = "";
   if (difficulty === Difficulty.EASY) {
-    prompt = `Generate a simple typing practice text about "${topic}". Use simple English words, short sentences. No markdown. Lowercase mainly. Approx 30 words.`;
+    prompt = `Generate a simple English typing practice text about "${topic}". Ensure the output is strictly in English, even if the topic is in Chinese. Use simple words, short sentences. No markdown. Lowercase mainly. Approx 30 words.`;
   } else if (difficulty === Difficulty.MEDIUM) {
-    prompt = `Generate a standard typing paragraph about "${topic}". Good grammar, mixed case, punctuation. Approx 60 words. No markdown.`;
+    prompt = `Generate a standard English typing paragraph about "${topic}". Ensure the output is strictly in English, even if the topic is in Chinese. Good grammar, mixed case, punctuation. Approx 60 words. No markdown.`;
   } else {
-    prompt = `Generate a complex text about "${topic}". Include numbers, symbols, and technical terms if applicable. Approx 80 words. No markdown.`;
+    prompt = `Generate a complex English text about "${topic}". Ensure the output is strictly in English, even if the topic is in Chinese. Include numbers, symbols, and technical terms if applicable. Approx 80 words. No markdown.`;
   }
 
   try {
@@ -31,7 +31,7 @@ export const generateLesson = async (topic: string, difficulty: Difficulty): Pro
 
     return {
       id: `ai-${Date.now()}`,
-      title: `AI生成: ${topic}`,
+      title: `AI生成: ${topic} (English)`,
       category: 'ai',
       difficulty,
       content: text
