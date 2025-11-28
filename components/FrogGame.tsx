@@ -43,18 +43,19 @@ const FrogGame: React.FC<FrogGameProps> = ({ onExit }) => {
 
   const generateLane = (idPrefix: string, index: number): Lane => {
     const word = GAME_WORDS[Math.floor(Math.random() * GAME_WORDS.length)];
-    const direction = Math.random() > 0.5 ? 1 : -1;
     
     // Base speed increases with score
-    const baseSpeed = 0.005 + (Math.random() * 0.008); 
-    // Speed is units per ms. 0.01 is fast. 0.005 is roughly 20s to cross.
+    const baseSpeed = 0.005 + (Math.random() * 0.005); 
     const speed = baseSpeed * speedMultiplier.current;
 
-    // Start position depends on direction
-    const startX = direction === 1 ? -20 : 120;
+    // FIX: Spawn completely within visible area (10% to 90%)
+    const startX = 10 + Math.random() * 80; 
+    
+    // FIX: Direction is determined by position (move towards center to maximize visibility duration)
+    const direction = startX > 50 ? -1 : 1;
 
     return {
-      id: `${idPrefix}-${index}`,
+      id: `${idPrefix}-${index}-${Math.random().toString(36).substr(2, 5)}`, // Ensure unique ID
       word,
       speed,
       direction,
@@ -76,10 +77,7 @@ const FrogGame: React.FC<FrogGameProps> = ({ onExit }) => {
 
     // Generate initial lanes
     const initialLanes = Array.from({ length: LANE_COUNT }).map((_, i) => {
-        const lane = generateLane('init', i);
-        // Pre-position them in the middle for the start
-        lane.x = 20 + Math.random() * 60;
-        return lane;
+        return generateLane('init', i);
     });
     setLanes(initialLanes);
 
@@ -106,13 +104,23 @@ const FrogGame: React.FC<FrogGameProps> = ({ onExit }) => {
         const nextLanes = prevLanes.map((lane) => {
             const moveAmount = lane.speed * deltaTime * lane.direction * 10; // *10 scaling factor for visible speed
             const newX = lane.x + moveAmount;
-            return { ...lane, x: newX };
+            
+            // Bounce logic: if hits edge, reverse direction (keeps items on screen longer)
+            // Or just wrap? Bouncing is safer for gameplay.
+            let nextX = newX;
+            let nextDir = lane.direction;
+            
+            if (newX > 110) { nextDir = -1; nextX = 110; }
+            if (newX < -10) { nextDir = 1; nextX = -10; }
+
+            return { ...lane, x: nextX, direction: nextDir };
         });
 
         // 2. Check Collision (Did the target lane move off screen?)
+        // With bounce logic, this is less likely, but still check bounds just in case logic fails
         if (nextLanes.length > 0) {
             const target = nextLanes[0];
-            const isOffScreen = target.direction === 1 ? target.x > 115 : target.x < -15;
+            const isOffScreen = target.x > 120 || target.x < -20;
             
             if (isOffScreen) {
                 // If we miss the lane, it's game over
@@ -125,7 +133,7 @@ const FrogGame: React.FC<FrogGameProps> = ({ onExit }) => {
     });
 
     requestRef.current = requestAnimationFrame(animate);
-  }, [gameOver, isPlaying, isJumping]); // Added isJumping dependency
+  }, [gameOver, isPlaying, isJumping]); 
 
   const handleGameOver = () => {
       setFrogState('SINK');
@@ -181,16 +189,21 @@ const FrogGame: React.FC<FrogGameProps> = ({ onExit }) => {
       setTimeout(() => {
         setLanes(prev => {
             const remaining = prev.slice(1);
+            // Spawn NEW lane at end
             const newLane = generateLane(`lane-${Date.now()}`, remaining.length);
             return [...remaining, newLane];
         });
         
         // Reset frog to center for the new layout (optional, but keeps game centered)
+        // Actually, keep frog at landed position for continuity until next jump?
+        // But the world shifts down, so the pad under frog disappears. 
+        // Best visual trick: Reset frog to center, but spawn the next pad under it?
+        // No, simplest is: Frog lands, then "camera moves up" (lanes shift down), 
+        // Frog stays relatively at bottom center.
         setFrogX(50); 
         setFrogState('IDLE');
         setIsJumping(false); // Resume movement
         
-        // Note: We need to reset time ref to avoid jumpy delta after pause
         prevTimeRef.current = performance.now();
 
       }, 400); // Matches transition duration
@@ -257,7 +270,7 @@ const FrogGame: React.FC<FrogGameProps> = ({ onExit }) => {
                             left: `${lane.x}%`, 
                             width: '180px', 
                             transform: 'translateX(-50%)',
-                            transition: isJumping ? 'none' : 'left 0.1s linear' // Allow smooth CSS interpolation if JS lags slightly, but manual updates override
+                            transition: isJumping ? 'none' : 'left 0.1s linear'
                         }}
                       >
                           {/* Sprite */}
