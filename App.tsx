@@ -5,6 +5,7 @@ import VirtualKeyboard from './components/VirtualKeyboard';
 import TypingGame from './components/TypingGame';
 import DragonGame from './components/DragonGame';
 import RaceGame from './components/RaceGame';
+import FrogGame from './components/FrogGame';
 import { generateLesson } from './services/geminiService';
 import { playClick, playError, playSuccess } from './services/soundService';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
@@ -319,7 +320,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* Game Mode: Typing Race (NEW) */}
+          {/* Game Mode: Typing Race */}
           <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-3xl p-8 shadow-xl text-white relative overflow-hidden group cursor-pointer transform hover:scale-[1.02] transition-transform"
                onClick={() => setMode(AppMode.RACEGAME)}>
             <div className="absolute bottom-0 right-0 w-40 h-24 bg-white/10 rounded-t-full -mr-10 blur-xl transition-all group-hover:bg-white/20"></div>
@@ -328,6 +329,19 @@ export default function App() {
                <p className="text-green-100 mb-4 text-sm font-bold opacity-90">与电脑比赛，谁跑得更快？</p>
                <button className="bg-white/20 hover:bg-white text-white hover:text-green-600 px-6 py-2 rounded-full font-bold border border-white/40 transition-all text-sm">
                  开始比赛
+               </button>
+            </div>
+          </div>
+
+          {/* Game Mode: Frog River (NEW) */}
+          <div className="bg-gradient-to-br from-cyan-500 to-blue-500 rounded-3xl p-8 shadow-xl text-white relative overflow-hidden group cursor-pointer transform hover:scale-[1.02] transition-transform"
+               onClick={() => setMode(AppMode.RIVERGAME)}>
+            <div className="absolute top-1/2 left-1/2 w-48 h-48 bg-white/10 rounded-full -ml-24 -mt-24 blur-3xl transition-all group-hover:bg-white/20"></div>
+            <div className="relative z-10">
+               <h2 className="text-3xl font-cartoon mb-2">🐸 青蛙过河</h2>
+               <p className="text-cyan-100 mb-4 text-sm font-bold opacity-90">跟着节奏打字，帮青蛙过河！</p>
+               <button className="bg-white/20 hover:bg-white text-white hover:text-cyan-600 px-6 py-2 rounded-full font-bold border border-white/40 transition-all text-sm">
+                 开始跳跃
                </button>
             </div>
           </div>
@@ -572,7 +586,7 @@ export default function App() {
 
   return (
     <div className={`
-      ${(mode === AppMode.GAME || mode === AppMode.RPGGAME || mode === AppMode.RACEGAME) ? 'h-screen overflow-hidden' : 'min-h-screen'}
+      ${(mode === AppMode.GAME || mode === AppMode.RPGGAME || mode === AppMode.RACEGAME || mode === AppMode.RIVERGAME) ? 'h-screen overflow-hidden' : 'min-h-screen'}
       bg-[#f0f9ff] text-slate-800 font-sans selection:bg-blue-200 flex flex-col
     `}>
       {mode === AppMode.HOME && renderHome()}
@@ -596,6 +610,13 @@ export default function App() {
       {mode === AppMode.RACEGAME && (
         <div className="h-full w-full p-0 flex flex-col flex-1">
           <RaceGame onExit={() => setMode(AppMode.HOME)} />
+        </div>
+      )}
+
+      {/* Game Mode: Frog River Game */}
+      {mode === AppMode.RIVERGAME && (
+        <div className="h-full w-full p-0 flex flex-col flex-1">
+          <FrogGame onExit={() => setMode(AppMode.HOME)} />
         </div>
       )}
       
